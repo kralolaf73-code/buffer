@@ -1,87 +1,83 @@
 const express = require('express');
-const http = require('http');
 const https = require('https');
+const http = require('http');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// CANLI YAYIN LİNKİNİ BURAYA YAPIŞTIR
-const TARGET_URL = "https://d31beekkopsyst.cloudfront.net/beintv/tracks-v1a1/mono.m3u8"; 
-const DELAY_MS = 30000; // Tam 30 saniye gecikme (30000 ms). İstersen 60000 yapıp 1 dakika da yapabilirsin.
+// GERÇEK HLS LİNKİN
+const TARGET_URL = "https://d31beekkopsyst.cloudfront.net/beintv/tracks-v1a1/mono.m3u8";
+const DELAY_MS = 30000; // Tam 30 saniye gecikme (30000 ms)
 
-app.get('/bein.m3u8', (req, res) => {
-    // Tarayıcı ve oynatıcılar için en kararlı başlıklar
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Content-Type', 'video/mp2t');
-    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-    res.setHeader('Connection', 'keep-alive');
+let playlistHistory = [];
 
-    // Linkin HTTP veya HTTPS olmasına göre otomatik protokol seçimi
+// Arka planda her 3 saniyede bir ana m3u8 listesini çekip RAM'de tarihçesini tutuyoruz
+function fetchPlaylist() {
     const lib = TARGET_URL.startsWith('https') ? https : http;
-
-    const upstreamReq = lib.get(TARGET_URL, {
+    lib.get(TARGET_URL, {
         headers: {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
             "Referer": "https://www.google.com/"
         }
-    }, (upstream) => {
-        // Kaynak yayın 200 OK dönmezse hata fırlatmayalım, loglayalım
-        if (upstream.statusCode !== 200) {
-            res.status(upstream.statusCode).send("Kaynak yayın HTTP hata kodu döndürdü: " + upstream.statusCode);
-            return;
+    }, (res) => {
+        let data = '';
+        res.on('data', chunk => data += chunk);
+        res.on('end', () => {
+            if (res.statusCode === 200 && data.includes('#EXTM3U')) {
+                const now = Date.now();
+                playlistHistory.push({ text: data, time: now });
+                
+                // Bellek şişmemesi için sadece son 60 saniyenin geçmişini tutuyoruz
+                playlistHistory = playlistHistory.filter(item => (now - item.time) < 60000);
+            }
+        });
+    }).on('error', (err) => {
+        console.error("Playlist çekme hatası:", err.message);
+    });
+}
+
+// İlk başlatma ve periyodik döngü
+fetchPlaylist();
+setInterval(fetchPlaylist, 3000);
+
+app.get('/bein.m3u8', (req, res) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+
+    if (playlistHistory.length === 0) {
+        return res.status(503).send("Yayın henüz tamponlanıyor, lütfen 10 saniye bekleyin...");
+    }
+
+    const targetTime = Date.now() - DELAY_MS;
+    
+    // Tam 30 saniye öncesine ait en yakın playlist kaydını seçiyoruz
+    let bestMatch = playlistHistory[0];
+    let minDiff = Math.abs(bestMatch.time - targetTime);
+
+    for (let i = 1; i < playlistHistory.length; i++) {
+        const diff = Math.abs(playlistHistory[i].time - targetTime);
+        if (diff < minDiff) {
+            minDiff = diff;
+            bestMatch = playlistHistory[i];
         }
+    }
 
-        let bufferQueue = [];
-        let isClientConnected = true;
-
-        // Gelen ham veriyi zaman damgasıyla kuyruğa atıyoruz
-        upstream.on('data', (chunk) => {
-            if (!isClientConnected) return;
-            bufferQueue.push({
-                chunk: chunk,
-                receiveTime: Date.now()
-            });
-        });
-
-        // Her 50 milisaniyede bir kuyruğu tarayıp, tam 30 saniyesi dolan veriyi dışarı salıyoruz
-        const interval = setInterval(() => {
-            if (!isClientConnected) {
-                clearInterval(interval);
-                return;
+    // Playlist içindeki göreceli segment linklerini CloudFront tabanlı tam adrese çeviriyoruz
+    const baseUrl = TARGET_URL.substring(0, TARGET_URL.lastIndexOf('/') + 1);
+    const lines = bestMatch.text.split('\n');
+    const modifiedLines = lines.map(line => {
+        line = line.trim();
+        if (line && !line.startsWith('#')) {
+            if (!line.startsWith('http')) {
+                return baseUrl + line;
             }
-
-            const now = Date.now();
-            while (bufferQueue.length > 0 && (now - bufferQueue[0].receiveTime) >= DELAY_MS) {
-                const item = bufferQueue.shift();
-                try {
-                    res.write(item.chunk);
-                } catch (err) {
-                    // Kullanıcı oynatıcıyı kapattıysa yazmayı kes
-                    isClientConnected = false;
-                    break;
-                }
-            }
-        }, 50);
-
-        // Kullanıcı yayından çıktığında (veya ExoPlayer'ı kapattığında) sunucu belleğini anında temizliyoruz
-        req.on('close', () => {
-            isClientConnected = false;
-            clearInterval(interval);
-            upstream.destroy(); // Kaynak bağlantısını kopararak sunucuyu boşa harcama yapmaktan koruyoruz
-        });
-
-        upstream.on('error', (err) => {
-            console.error("Kaynak akış hatası:", err.message);
-        });
-
+        }
+        return line;
     });
 
-    upstreamReq.on('error', (err) => {
-        if (!res.headersSent) {
-            res.status(500).send("Proxy Bağlantı Hatası: " + err.message);
-        }
-    });
+    res.send(modifiedLines.join('\n'));
 });
 
 app.listen(PORT, () => {
-    console.log(`Buffer proxy ${PORT} portunda kusursuz şekilde çalışıyor...`);
+    console.log(`HLS Buffer Proxy ${PORT} portunda kusursuz çalışıyor...`);
 });
