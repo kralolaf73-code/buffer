@@ -4,16 +4,17 @@ const http = require('http');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// GERÇEK HLS LİNKİN
 const TARGET_URL = "https://d31beekkopsyst.cloudfront.net/beintv/tracks-v1a1/mono.m3u8";
-const DELAY_MS = 30000; // Tam 30 saniye arka plan buffer'ı
+const DELAY_MS = 30000; // Tam 30 saniye gecikme
 
-// RAM'de segmentleri ve playlist geçmişini tutacağımız hafıza alanları
-let segmentCache = new Map(); // segmentAdi -> { buffer, timeAdded }
-let playlistHistory = [];    // { text, time }
+// RAM'de segmentleri saklayacağımız alanlar
+let segmentCache = new Map(); // segmentAdi -> { buffer, duration }
+let segmentQueue = [];       // [{ name, timeAdded }]
+let mediaSequenceBase = 1000;
+let lastSeenSegments = new Set();
 
-// 1. Ana yayından m3u8 listesini ve video segmentlerini arka planda sürekli çeken motor
-function pollStream() {
+// 1. Ana yayını sürekli tarayıp yeni video parçalarını RAM'e indiren motor
+function pollMasterStream() {
     const lib = TARGET_URL.startsWith('https') ? https : http;
     lib.get(TARGET_URL, {
         headers: {
@@ -21,48 +22,53 @@ function pollStream() {
             "Referer": "https://www.google.com/"
         }
     }, (res) => {
+        if (res.statusCode !== 200) return;
         let data = '';
         res.on('data', chunk => data += chunk);
         res.on('end', () => {
-            if (res.statusCode === 200 && data.includes('#EXTM3U')) {
-                const now = Date.now();
-                playlistHistory.push({ text: data, time: now });
+            if (!data.includes('#EXTM3U')) return;
 
-                // Eski playlist geçmişini temizle (90 saniyeden eski olanlar çöpe)
-                playlistHistory = playlistHistory.filter(item => (now - item.time) < 90000);
+            const baseUrl = TARGET_URL.substring(0, TARGET_URL.lastIndexOf('/') + 1);
+            const lines = data.split('\n');
+            let currentDuration = 6.0;
 
-                // Playlist içindeki her bir video parçasını (.ts/.m4s) yakalayıp hemen RAM'e indiriyoruz
-                const baseUrl = TARGET_URL.substring(0, TARGET_URL.lastIndexOf('/') + 1);
-                const lines = data.split('\n');
-
-                for (let line of lines) {
-                    line = line.trim();
-                    if (line && !line.startsWith('#')) {
-                        let segUrl = line.startsWith('http') ? line : baseUrl + line;
-                        let segName = line.substring(line.lastIndexOf('/') + 1);
-                        downloadSegment(segUrl, segName);
+            for (let i = 0; i < lines.length; i++) {
+                let line = lines[i].trim();
+                if (line.startsWith('#EXTINF:')) {
+                    let parts = line.split(':');
+                    if (parts[1]) {
+                        currentDuration = parseFloat(parts[1]) || 6.0;
                     }
-                }
+                } else if (line && !line.startsWith('#')) {
+                    let segUrl = line.startsWith('http') ? line : baseUrl + line;
+                    let segName = line.substring(line.lastIndexOf('/') + 1).split('?')[0];
 
-                // RAM şişmesin diye 60 saniyeden eski segmentleri hafızadan siliyoruz
-                for (let [name, seg] of segmentCache.entries()) {
-                    if ((now - seg.timeAdded) > 60000) {
-                        segmentCache.delete(name);
+                    if (!lastSeenSegments.has(segName)) {
+                        lastSeenSegments.add(segName);
+                        downloadAndCacheSegment(segUrl, segName, currentDuration);
                     }
                 }
             }
+
+            // 90 saniyeden eski segmentleri RAM'den temizle (Bellek şişmesini önler)
+            const now = Date.now();
+            segmentQueue = segmentQueue.filter(item => {
+                if ((now - item.timeAdded) > 90000) {
+                    segmentCache.delete(item.name);
+                    lastSeenSegments.delete(item.name);
+                    return false;
+                }
+                return true;
+            });
         });
     }).on('error', (err) => {
-        console.error("Akış çekme hatası:", err.message);
+        console.error("Poll hatası:", err.message);
     });
 }
 
-// Segmentleri RAM'e indiren yardımcı fonksiyon
-function downloadSegment(segmentUrl, segmentName) {
-    if (segmentCache.has(segmentName)) return; // Zaten indiyse tekrar indirme
-
-    const lib = segmentUrl.startsWith('https') ? https : http;
-    lib.get(segmentUrl, {
+function downloadAndCacheSegment(segUrl, segName, duration) {
+    const lib = segUrl.startsWith('https') ? https : http;
+    lib.get(segUrl, {
         headers: {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
             "Referer": "https://www.google.com/"
@@ -72,57 +78,52 @@ function downloadSegment(segmentUrl, segmentName) {
         let chunks = [];
         res.on('data', chunk => chunks.push(chunk));
         res.on('end', () => {
-            segmentCache.set(segmentName, {
-                buffer: Buffer.concat(chunks),
-                timeAdded: Date.now()
-            });
+            const buffer = Buffer.concat(chunks);
+            const timeAdded = Date.now();
+            segmentCache.set(segName, { buffer, duration });
+            segmentQueue.push({ name: segName, timeAdded });
         });
     }).on('error', () => {});
 }
 
 // Sunucu başlar başlamaz arka planda buffer motorunu çalıştırıyoruz
-pollStream();
-setInterval(pollStream, 2000); // Her 2 saniyede bir yeni segmentleri topla
+pollMasterStream();
+setInterval(pollMasterStream, 2000);
 
-// 2. Gecikmeli M3U8 Endpoint'i (İstemciye 30 saniye gerideki listeyi sunar)
+// 2. ExoPlayer'ın istek atacağı /bein.m3u8 endpoint'i (Tam 30 saniye geriden gelen liste üretir)
 app.get('/bein.m3u8', (req, res) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
 
-    if (playlistHistory.length === 0) {
-        return res.status(503).send("#EXTM3U\n# Sunucu ilk buffer'ı topluyor, lütfen 10 saniye bekleyin...");
+    const now = Date.now();
+    // Tam 30 saniye (DELAY_MS) önce RAM'e girmiş olan segmentleri filtreliyoruz
+    const delayedSegments = segmentQueue.filter(item => (now - item.timeAdded) >= DELAY_MS);
+
+    if (delayedSegments.length < 3) {
+        return res.status(503).send("#EXTM3U\n#EXT-X-TARGETDURATION:6\n#EXT-X-MEDIA-SEQUENCE:1\n#EXTINF:6.0,\n/bein.m3u8");
     }
 
-    // Hedef: Şu andan tam 30 saniye öncesi
-    const targetTime = Date.now() - DELAY_MS;
-    
-    let bestMatch = playlistHistory[0];
-    let minDiff = Math.abs(bestMatch.time - targetTime);
+    // Son 6 segmenti alarak pürüzsüz bir HLS döngüsü oluşturuyoruz
+    const windowSize = 6;
+    const activeSegments = delayedSegments.slice(-windowSize);
 
-    for (let i = 1; i < playlistHistory.length; i++) {
-        const diff = Math.abs(playlistHistory[i].time - targetTime);
-        if (diff < minDiff) {
-            minDiff = diff;
-            bestMatch = playlistHistory[i];
-        }
+    let m3u8Content = `#EXTM3U\n`;
+    m3u8Content += `#EXT-X-VERSION:3\n`;
+    m3u8Content += `#EXT-X-TARGETDURATION:6\n`;
+    m3u8Content += `#EXT-X-MEDIA-SEQUENCE:${mediaSequenceBase + segmentQueue.indexOf(activeSegments[0])}\n`;
+
+    for (let seg of activeSegments) {
+        let cached = segmentCache.get(seg.name);
+        let dur = cached ? cached.duration : 6.0;
+        m3u8Content += `#EXTINF:${dur.toFixed(3)},\n`;
+        m3u8Content += `/segment/${seg.name}\n`;
     }
 
-    // Listemizi düzenleyip segmentleri kendi sunucu route'umuza bağlıyoruz
-    const lines = bestMatch.text.split('\n');
-    const modifiedLines = lines.map(line => {
-        line = line.trim();
-        if (line && !line.startsWith('#')) {
-            let segName = line.substring(line.lastIndexOf('/') + 1);
-            return `/segment/${segName}`; // RAM'deki cache'den servis edilecek
-        }
-        return line;
-    });
-
-    res.send(modifiedLines.join('\n'));
+    res.send(m3u8Content);
 });
 
-// 3. RAM'deki Video Parçalarını Servis Eden Endpoint
+// 3. RAM'deki video parçalarını (segmentleri) sunan endpoint
 app.get('/segment/:name', (req, res) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Content-Type', 'video/mp2t');
@@ -138,5 +139,5 @@ app.get('/segment/:name', (req, res) => {
 });
 
 app.listen(PORT, () => {
-    console.log(`Pre-buffered HLS Proxy ${PORT} portunda aktif ve çalışıyor!`);
+    console.log(`Sentetik HLS Buffer Proxy ${PORT} portunda çalışıyor...`);
 });
