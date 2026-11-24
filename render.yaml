@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: buffer-hls-proxy
+    runtime: python
+    plan: free
+    rootDir: hls-proxy
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn --worker-class gthread --workers 1 --threads 8 --config gunicorn.conf.py deneme:app
+    envVars:
+      - key: SOURCE_M3U8S
+        sync: false
+      - key: PLAYLIST_TOKEN
+        generateValue: true
+      - key: PROXY_SEGMENTS
+        value: "1"
+      - key: LAG_SEC
+        value: "9"
+      - key: TARGET_BUFFER_SEC
+        value: "28"
+      - key: MIN_BUFFER_SEC
+        value: "20"
+      - key: POLL_INTERVAL
+        value: "2"
+      - key: STALE_AFTER_SEC
+        value: "30"
