@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b1020">
+  <title>HLS yayın bağlantıları</title>
+  <style>
+    :root { color-scheme: dark; font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #0b1020; color: #eef2ff; }
+    main { width: min(900px, calc(100% - 32px)); margin: 40px auto; }
+    h1 { margin: 0 0 8px; font-size: clamp(1.6rem, 4vw, 2.4rem); }
+    .sub { color: #9ba8c7; margin: 0 0 24px; line-height: 1.55; }
+    .bar { display: flex; gap: 12px; align-items: center; justify-content: space-between; margin: 20px 0; color: #b9c5df; }
+    #list { display: grid; gap: 10px; }
+    article { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 16px; border: 1px solid #29334e; border-radius: 12px; background: #121a2e; }
+    code { font-size: 1rem; color: #d5e1ff; }
+    .actions { display: flex; flex-wrap: wrap; gap: 8px; }
+    a, button { border: 0; border-radius: 8px; padding: 9px 12px; color: #08111e; background: #85d7c3; text-decoration: none; font: inherit; cursor: pointer; }
+    button { color: #dce7ff; background: #273552; }
+    .note { margin-top: 22px; color: #95a2bf; font-size: .9rem; line-height: 1.55; }
+    .error { color: #ffb8b8; }
+    @media (max-width: 560px) { article { align-items: flex-start; flex-direction: column; } .bar { align-items: flex-start; flex-direction: column; } }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>HLS yayın bağlantıları</h1>
+    <p class="sub">Bağlantı listesi GitHub’daki güncel <code>streams/links.json</code> dosyasından alınır. HLS bağlantıları bu Render proxy’si üzerinden sunulur.</p>
+    <div class="bar"><span id="summary">Kanallar yükleniyor…</span><button id="refresh" type="button">Yenile</button></div>
+    <section id="list" aria-live="polite"></section>
+    <p class="note">GitHub Action bağlantıları yaklaşık 6 saatte bir yeniler. Kaynak erişimi, yayınların kullanılabilirliği ve yayın hakları garanti edilmez; yalnızca yetkili olduğunuz içerikleri kullanın.</p>
+  </main>
+  <script>
+    const list = document.querySelector('#list');
+    const summary = document.querySelector('#summary');
+    async function load() {
+      summary.textContent = 'Kanallar yükleniyor…';
+      list.replaceChildren();
+      try {
+        const response = await fetch('/api/streams', { cache: 'no-store' });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.json();
+        const updated = data.updatedAt ? new Date(data.updatedAt).toLocaleString('tr-TR') : 'bilinmiyor';
+        summary.textContent = `${data.count} kanal · bağlantı listesi güncellendi: ${updated}`;
+        for (const item of data.streams) {
+          const row = document.createElement('article');
+          const name = document.createElement('code');
+          name.textContent = item.name;
+          const actions = document.createElement('div');
+          actions.className = 'actions';
+          const open = document.createElement('a');
+          open.href = item.href;
+          open.textContent = 'M3U8 bağlantısı';
+          open.target = '_blank';
+          open.rel = 'noopener';
+          const copy = document.createElement('button');
+          copy.type = 'button';
+          copy.textContent = 'Bağlantıyı kopyala';
+          copy.addEventListener('click', async () => {
+            try {
+              await navigator.clipboard.writeText(new URL(item.href, location.href).href);
+              copy.textContent = 'Kopyalandı';
+            } catch {
+              copy.textContent = 'Kopyalanamadı';
+            }
+            setTimeout(() => copy.textContent = 'Bağlantıyı kopyala', 1400);
+          });
+          actions.append(open, copy);
+          row.append(name, actions);
+          list.append(row);
+        }
+      } catch (error) {
+        summary.textContent = 'Kanal listesi alınamadı';
+        const message = document.createElement('p');
+        message.className = 'error';
+        message.textContent = error.message;
+        list.append(message);
+      }
+    }
+    document.querySelector('#refresh').addEventListener('click', load);
+    load();
+  </script>
+</body>
+</html>
