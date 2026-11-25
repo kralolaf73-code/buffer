@@ -1,0 +1,51 @@
+name: Refresh stream links
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Every 6 hours at :17 UTC (03:17, 09:17, 15:17, 21:17 Türkiye time).
+    - cron: "17 */6 * * *"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: refresh-stream-links
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Discover and validate stream links
+        run: node update.js
+
+      - name: Export worker-readable JSON
+        run: node scripts/export-links.mjs
+
+      - name: Commit updated links when changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add streams/links.json
+          if git diff --cached --quiet; then
+            echo "links.json unchanged; no commit needed."
+          else
+            git commit -m "chore: refresh stream links"
+            git push origin HEAD:main
+          fi

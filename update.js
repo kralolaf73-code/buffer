@@ -235,6 +235,7 @@ async function validateStream(url) {
     try {
         const res = await fetch(url, {
             method: "GET",
+            signal: AbortSignal.timeout(10000),
             headers: {
                 "User-Agent": USER_AGENT,
                 "Referer": REFERER,
@@ -249,8 +250,8 @@ async function validateStream(url) {
 
         const text = await res.text();
 
-        // Check if it looks like real m3u8
-        if (text.includes("#EXTM3U")) {
+        // Require a real HLS playlist, not an HTML error page containing the marker.
+        if (text.trimStart().startsWith("#EXTM3U")) {
             return true;
         }
 
@@ -285,12 +286,9 @@ async function generateStreams(baseUrl) {
             error: null
         };
 
-    //    console.log("Validating stream:", streamUrl);
-
         try {
-        //    const valid = await validateStream(streamUrl);
-
-        //    if (valid) {
+            const valid = await validateStream(streamUrl);
+            if (valid) {
                 streamStatus.valid = true;
                 success++;
 
@@ -301,10 +299,9 @@ ${streamUrl}
 `;
 
                 fs.writeFileSync(filename, content);
-
-           /* } else {
-                streamStatus.error = "Validation failed";
-            }*/
+            } else {
+                streamStatus.error = "Source did not return a valid HLS playlist";
+            }
 
         } catch (err) {
             streamStatus.error = err.message;
@@ -329,19 +326,22 @@ ${streamUrl}
         console.log("Extracted baseUrl:", baseUrl);
 
         const count = await generateStreams(baseUrl);
-        if (count === 0) throw new Error("No valid streams generated");
-
         saveLastDomain(domain);
-
-        healthReport.success = healthReport.streams.some(s => s.valid);
+        healthReport.success = count > 0;
+        if (count === 0) healthReport.error = "No valid streams generated";
 
         fs.writeFileSync(
             "health.json",
             JSON.stringify(healthReport, null, 2)
         );
 
+        if (count === 0) throw new Error("No valid streams generated");
         console.log("Done. Streams generated:", count);
     } catch (err) {
         healthReport.error = err.message;
+        fs.writeFileSync(
+            "health.json",
+            JSON.stringify(healthReport, null, 2)
+        );
     }
 })();

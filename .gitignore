@@ -1,0 +1,5 @@
+node_modules/
+health.json
+domains.json
+streams/*.m3u8
+!streams/links.json

@@ -1,0 +1,128 @@
+{
+  "schemaVersion": 1,
+  "updatedAt": "2026-11-25T15:27:39.914Z",
+  "workingDomain": "https://taraftarium1090.xyz",
+  "count": 30,
+  "streams": [
+    {
+      "name": "patron",
+      "url": "https://g1b.d72577a9dd0ec74.cfd/patron/mono.m3u8"
+    },
+    {
+      "name": "zirve",
+      "url": "https://g1b.d72577a9dd0ec74.cfd/zirve/mono/mono.m3u8"
+    },
+    {
+      "name": "b2",
+      "url": "https://g1b.d72577a9dd0ec74.cfd/b2/mono.m3u8"
+    },
+    {
+      "name": "b3",
+      "url": "https://g1b.d72577a9dd0ec74.cfd/b3/mono.m3u8"
+    },
+    {
+      "name": "b4",
+      "url": "https://g1b.d72577a9dd0ec74.cfd/b4/mono.m3u8"
+    },
+    {
+      "name": "b5",
+      "url": "https://g1b.d72577a9dd0ec74.cfd/b5/mono.m3u8"
+    },
+    {
+      "name": "ss",
+      "url": "https://g1b.d72577a9dd0ec74.cfd/ss/mono.m3u8"
+    },
+    {
+      "name": "ss2",
+      "url": "https://g1b.d72577a9dd0ec74.cfd/ss2/mono.m3u8"
+    },
+    {
+      "name": "t1",
+      "url": "https://g1b.d72577a9dd0ec74.cfd/t1/mono.m3u8"
+    },
+    {
+      "name": "t2",
+      "url": "https://g1b.d72577a9dd0ec74.cfd/t2/mono.m3u8"
+    },
+    {
+      "name": "t3",
+      "url": "https://g1b.d72577a9dd0ec74.cfd/t3/mono.m3u8"
+    },
+    {
+      "name": "t4",
+      "url": "https://g1b.d72577a9dd0ec74.cfd/t4/mono.m3u8"
+    },
+    {
+      "name": "smarts",
+      "url": "https://g1b.d72577a9dd0ec74.cfd/smarts/mono.m3u8"
+    },
+    {
+      "name": "sms2",
+      "url": "https://g1b.d72577a9dd0ec74.cfd/sms2/mono.m3u8"
+    },
+    {
+      "name": "trtspor",
+      "url": "https://g1b.d72577a9dd0ec74.cfd/trtspor/mono.m3u8"
+    },
+    {
+      "name": "trtspor2",
+      "url": "https://g1b.d72577a9dd0ec74.cfd/trtspor2/mono.m3u8"
+    },
+    {
+      "name": "trt1",
+      "url": "https://g1b.d72577a9dd0ec74.cfd/trt1/mono.m3u8"
+    },
+    {
+      "name": "as",
+      "url": "https://g1b.d72577a9dd0ec74.cfd/as/mono.m3u8"
+    },
+    {
+      "name": "atv",
+      "url": "https://g1b.d72577a9dd0ec74.cfd/atv/mono.m3u8"
+    },
+    {
+      "name": "tv8",
+      "url": "https://g1b.d72577a9dd0ec74.cfd/tv8/mono.m3u8"
+    },
+    {
+      "name": "tv85",
+      "url": "https://g1b.d72577a9dd0ec74.cfd/tv85/mono.m3u8"
+    },
+    {
+      "name": "ex1",
+      "url": "https://g1b.d72577a9dd0ec74.cfd/ex1/mono.m3u8"
+    },
+    {
+      "name": "ex2",
+      "url": "https://g1b.d72577a9dd0ec74.cfd/ex2/mono.m3u8"
+    },
+    {
+      "name": "ex3",
+      "url": "https://g1b.d72577a9dd0ec74.cfd/ex3/mono.m3u8"
+    },
+    {
+      "name": "ex4",
+      "url": "https://g1b.d72577a9dd0ec74.cfd/ex4/mono.m3u8"
+    },
+    {
+      "name": "ex5",
+      "url": "https://g1b.d72577a9dd0ec74.cfd/ex5/mono.m3u8"
+    },
+    {
+      "name": "ex6",
+      "url": "https://g1b.d72577a9dd0ec74.cfd/ex6/mono.m3u8"
+    },
+    {
+      "name": "ex7",
+      "url": "https://g1b.d72577a9dd0ec74.cfd/ex7/mono.m3u8"
+    },
+    {
+      "name": "eu1",
+      "url": "https://g1b.d72577a9dd0ec74.cfd/eu1/mono.m3u8"
+    },
+    {
+      "name": "eu2",
+      "url": "https://g1b.d72577a9dd0ec74.cfd/eu2/mono.m3u8"
+    }
+  ]
+}
