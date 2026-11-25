@@ -71,8 +71,14 @@ async function getLinks(force = false) {
 
   linksPromise = (async () => {
     try {
-      const response = await fetch(LINKS_URL, {
-        headers: { "User-Agent": UPSTREAM_HEADERS["User-Agent"], Accept: "application/json" },
+      const requestUrl = new URL(LINKS_URL);
+      requestUrl.searchParams.set("cacheBust", Date.now().toString());
+      const response = await fetch(requestUrl, {
+        headers: {
+          "User-Agent": UPSTREAM_HEADERS["User-Agent"],
+          Accept: "application/json",
+          "Cache-Control": "no-cache",
+        },
         signal: AbortSignal.timeout(8000),
         cache: "no-store",
       });
