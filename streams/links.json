@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-11-25T15:27:39.914Z",
+  "updatedAt": "2026-11-25T15:29:47.772Z",
   "workingDomain": "https://taraftarium1090.xyz",
-  "count": 30,
+  "count": 26,
   "streams": [
     {
       "name": "patron",
@@ -107,22 +107,6 @@
     {
       "name": "ex5",
       "url": "https://g1b.d72577a9dd0ec74.cfd/ex5/mono.m3u8"
-    },
-    {
-      "name": "ex6",
-      "url": "https://g1b.d72577a9dd0ec74.cfd/ex6/mono.m3u8"
-    },
-    {
-      "name": "ex7",
-      "url": "https://g1b.d72577a9dd0ec74.cfd/ex7/mono.m3u8"
-    },
-    {
-      "name": "eu1",
-      "url": "https://g1b.d72577a9dd0ec74.cfd/eu1/mono.m3u8"
-    },
-    {
-      "name": "eu2",
-      "url": "https://g1b.d72577a9dd0ec74.cfd/eu2/mono.m3u8"
     }
   ]
 }
