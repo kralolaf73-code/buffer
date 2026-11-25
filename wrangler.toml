@@ -1,0 +1,7 @@
+name = "buffer-stream-worker"
+main = "worker/index.mjs"
+compatibility_date = "2026-11-25"
+workers_dev = true
+
+[vars]
+LINKS_JSON_URL = "https://raw.githubusercontent.com/kralolaf73-code/buffer/main/streams/links.json"
