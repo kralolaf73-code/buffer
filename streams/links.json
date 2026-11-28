@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-11-27T01:29:36.055Z",
-  "workingDomain": "https://taraftarium1090.xyz",
-  "count": 27,
+  "updatedAt": "2026-11-28T01:27:01.241Z",
+  "workingDomain": "https://taraftarium1091.xyz",
+  "count": 24,
   "streams": [
     {
       "name": "patron",
@@ -27,6 +27,14 @@
     {
       "name": "b5",
       "url": "https://g1b.d72577a9dd0ec74.cfd/b5/mono.m3u8"
+    },
+    {
+      "name": "bm1",
+      "url": "https://g1b.d72577a9dd0ec74.cfd/bm1/mono.m3u8"
+    },
+    {
+      "name": "bm2",
+      "url": "https://g1b.d72577a9dd0ec74.cfd/bm2/mono.m3u8"
     },
     {
       "name": "ss",
@@ -89,28 +97,8 @@
       "url": "https://g1b.d72577a9dd0ec74.cfd/tv85/mono.m3u8"
     },
     {
-      "name": "ex1",
-      "url": "https://g1b.d72577a9dd0ec74.cfd/ex1/mono.m3u8"
-    },
-    {
       "name": "ex2",
       "url": "https://g1b.d72577a9dd0ec74.cfd/ex2/mono.m3u8"
-    },
-    {
-      "name": "ex3",
-      "url": "https://g1b.d72577a9dd0ec74.cfd/ex3/mono.m3u8"
-    },
-    {
-      "name": "ex4",
-      "url": "https://g1b.d72577a9dd0ec74.cfd/ex4/mono.m3u8"
-    },
-    {
-      "name": "ex5",
-      "url": "https://g1b.d72577a9dd0ec74.cfd/ex5/mono.m3u8"
-    },
-    {
-      "name": "ex6",
-      "url": "https://g1b.d72577a9dd0ec74.cfd/ex6/mono.m3u8"
     }
   ]
 }
